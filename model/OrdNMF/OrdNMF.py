@@ -107,12 +107,17 @@ class OrdNMF():
         # Shape
         U,I = Y.shape
         u,i = Y.nonzero()
+        Y.data=Y.data.astype(int)
         y = Y.data
         # Init - matrix companion
-        delta = self.init_delta(Y)  #delta = np.ones(T+1); delta[0]=0;
+        delta = self.init_delta(Y)
+        #delta = delta.reshape(-1, 1)  # Ensures it is a column vector
+        #H = (np.triu(np.ones((T+1, T+1))).dot(delta))[:, 0]
+        delta = np.ones(T+1); delta[0]=0;
         H = (np.triu(np.ones((T+1,T+1))).dot(delta[:,np.newaxis]))[:,0] 
         theta0 = H[0]
         G = theta0 - H
+        
         Gy = sparse.csr_matrix((G[y],(u,i)), shape=(U,I))
         # Init - W & H
         Ew = np.random.gamma(1.,1.,(U,self.K))
@@ -190,7 +195,10 @@ class OrdNMF():
      
     def init_delta(self,Y):
         """ Initialization of delta w.r.t. the histogram values of Y  """
+        Y.data=Y.data.astype(int)
+        print(type((Y.data)))
         hist_values = np.bincount(Y.data)
+        print(type(np.bincount(Y.data)))
         hist_values[0] = Y.nnz
         cum_hist = np.cumsum(hist_values, dtype=float)
         delta = hist_values/cum_hist
@@ -211,11 +219,14 @@ class OrdNMF():
         # Product        
         u,i = Y.nonzero()
         Lbd = np.sum(W[u,:]*H[i,:],1)
+        #Lbd = Lbd[:len(u)]
+        Y.data=Y.data.astype(int)
         delta_y = delta[Y.data]
         # En
         if self.approx == False:
             en = Lbd*delta_y/(1.-np.exp(-Lbd*delta_y)) #delta_y/(1.-np.exp(-Lbd*delta_y))
             en[np.isnan(en)] = 1.
+            #en = en[:len(u)]
         else :
             en = np.ones_like(Lbd)
         # Sum C
