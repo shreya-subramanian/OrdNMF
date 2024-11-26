@@ -9,6 +9,12 @@ from sklearn.preprocessing import MinMaxScaler
 sys.path.append("C:/Users/DELL/Desktop/ordnmf_project/OrdNMF/model/OrdNMF")
 from OrdNMF import OrdNMF  # Ensure this is correctly set up
 
+def quantize(matrix,bins):
+    quantized_matrix = np.digitize(matrix, bins, right=False) - 1  # make it map to 0 based indexing 
+    return quantized_matrix
+
+bins = np.linspace(0, 1, 6) #define categories for bins
+
 # Function to prepare matrix
 def prepare_matrix(df, label_col='watch_ratio', user_col='user_id', item_col='video_id'):
     scaler = MinMaxScaler()
@@ -47,16 +53,18 @@ for sv in test_sparsity_values:
     indices = np.array(random.sample(range(total_elements), num_to_mask)) # chooses indices randomly from flattened 1D array to mask 
     row_indices, col_indices = np.unravel_index(indices, sparser_array.shape) #unravles back to 2D 
     sparser_array[row_indices, col_indices] = np.nan # replaces with NaN 
+
+    #quantize the array before making it into sparse matrix and passing it to ORDNMF 
+    quantized_array = quantize(np.nan_to_num(sparser_array), bins)
     
     # Convert to sparse CSR matrix for OrdNMF
-    dense_matrix_sparse = csr_matrix(np.nan_to_num(sparser_array)) #creates csr matrix, thats what ordNMF implementation takes in 
+    dense_matrix_sparse = csr_matrix(np.nan_to_num(quantized_array)) #creates csr matrix, thats what ordNMF implementation takes in 
     
     # Initialize and fit OrdNMF
     K = 5   #latency features 
     model = OrdNMF(K=K) 
-    delta = np.linspace(0, 1, 6)  # Example delta, delta evenly spaces out ratings so if we have (1-5) it does (0,0.2,0.4,0.6,0.8,1) matches to category based on value 
-    model.delta = delta
-    model.fit(dense_matrix_sparse, T=6, precision=10**-5, seed=0, verbose=True, save=False)
+    model.delta = bins # set each category mapping to the same intervals as the bins 
+    model.fit(dense_matrix_sparse, T=len(bins), precision=10**-5, seed=0, verbose=True, save=False)
     
     # Compute RMSE
     Ew, Eh = model.Ew, model.Eh  #Ew, rows(so in our case users) to each category, Eh does columns(in our case movies) to each genre score 

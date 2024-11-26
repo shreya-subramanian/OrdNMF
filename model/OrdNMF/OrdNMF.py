@@ -216,6 +216,7 @@ class OrdNMF():
         Sw = \sum_i E[c_{uik}]
         Sh = \sum_u E[c_{uik}]
         """
+        
         # Product        
         u,i = Y.nonzero()
         Lbd = np.sum(W[u,:]*H[i,:],1)
